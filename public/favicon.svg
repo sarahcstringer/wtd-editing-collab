@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+    <!-- Notebook -->
+    <rect x="20" y="25" width="70" height="85" rx="3" class="notebook"/>
+    <line x1="35" y1="25" x2="35" y2="110" class="spiral"/>
+    <line x1="45" y1="50" x2="75" y2="50" class="line"/>
+    <line x1="45" y1="65" x2="75" y2="65" class="line"/>
+    <line x1="45" y1="80" x2="70" y2="80" class="line"/>
+
+    <!-- Pencil -->
+    <g class="pencil">
+        <rect x="75" y="65" width="40" height="8" rx="1" transform="rotate(45 95 69)"/>
+        <polygon points="103,77 108,82 111,79"/>
+        <rect x="72" y="62" width="8" height="4" transform="rotate(45 76 64)" class="eraser"/>
+    </g>
+
+    <style>
+        .notebook {
+            fill: #f5f5f5;
+            stroke: #333;
+            stroke-width: 2;
+        }
+        .spiral {
+            stroke: #666;
+            stroke-width: 2;
+            stroke-dasharray: 3,3;
+        }
+        .line {
+            stroke: #999;
+            stroke-width: 1.5;
+        }
+        .pencil {
+            fill: #ffc107;
+            stroke: #333;
+            stroke-width: 1.5;
+        }
+        .pencil polygon {
+            fill: #333;
+        }
+        .eraser {
+            fill: #ff6b9d;
+            stroke: #333;
+            stroke-width: 1;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .notebook {
+                fill: #2a2a2a;
+                stroke: #ddd;
+            }
+            .spiral {
+                stroke: #999;
+            }
+            .line {
+                stroke: #666;
+            }
+            .pencil {
+                stroke: #ddd;
+            }
+            .pencil polygon {
+                fill: #ddd;
+            }
+            .eraser {
+                stroke: #ddd;
+            }
+        }
+    </style>
+</svg>

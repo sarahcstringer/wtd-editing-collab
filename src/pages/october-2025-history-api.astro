@@ -1,0 +1,706 @@
+---
+import { convertMDNSyntax, extractMetadata } from '../utils/mdnConverter';
+import { readdir, readFile } from 'node:fs/promises';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { marked } from 'marked';
+
+// Get the directory of this file using import.meta.url for reliable path resolution
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Configure marked with custom renderer
+marked.use({
+  renderer: {
+    code(token) {
+      const lang = token.lang || 'text';
+      const langLabel = lang.toUpperCase();
+      const codeText = token.text;
+
+      // Escape HTML entities (marked handles this, but being explicit for security)
+      const escapedCode = codeText
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+
+      return `<div class="code-block-wrapper">
+    <div class="code-block-header">
+      <span class="code-lang-label">${langLabel}</span>
+    </div>
+    <pre><code class="language-${lang}">${escapedCode}</code></pre>
+  </div>`;
+    }
+  }
+});
+
+// Get all submissions with proper error handling
+const submissionsDir = join(__dirname, '../content/oct-2025/submissions');
+let submissions = [];
+
+try {
+  const files = await readdir(submissionsDir);
+  const mdFiles = files.filter(f => f.endsWith('.md') && !f.endsWith('-notes.md'));
+
+  submissions = await Promise.all(
+    mdFiles.map(async (file) => {
+      try {
+        const content = await readFile(join(submissionsDir, file), 'utf-8');
+        const { title, content: mdContent } = extractMetadata(content);
+        const converted = convertMDNSyntax(mdContent);
+        let html = await marked(converted);
+
+        // Add IDs to headings for ToC linking
+        const generateId = (text) => {
+          return text
+            .toLowerCase()
+            .replace(/<[^>]*>/g, '') // Remove HTML tags
+            .replace(/[^\w\s-]/g, '') // Remove special chars
+            .replace(/\s+/g, '-') // Replace spaces with hyphens
+            .replace(/-+/g, '-'); // Replace multiple hyphens with single
+        };
+
+        html = html.replace(/<h2>(.*?)<\/h2>/g, (match, text) => {
+          const id = generateId(text);
+          return `<h2 id="${id}">${text}</h2>`;
+        });
+
+        html = html.replace(/<h3>(.*?)<\/h3>/g, (match, text) => {
+          const id = generateId(text);
+          return `<h3 id="${id}">${text}</h3>`;
+        });
+
+        // Check for notes file
+        const notesFile = file.replace('.md', '-notes.md');
+        let notes = '';
+        if (files.includes(notesFile)) {
+          try {
+            const notesContent = await readFile(join(submissionsDir, notesFile), 'utf-8');
+            let notesHtml = await marked(notesContent);
+
+            // Remove the h1 title and boilerplate h2s and their following paragraphs
+            notesHtml = notesHtml
+              .replace(/<h1[^>]*>.*?<\/h1>/i, '')  // Remove h1
+              .replace(/<h2[^>]*>Document edited<\/h2>\s*<p>.*?<\/p>/i, '')  // Remove "Document edited" h2 and paragraph
+              .replace(/<h2[^>]*>My editing approach<\/h2>/i, '');  // Remove "My editing approach" h2
+
+            notes = notesHtml;
+          } catch (notesError) {
+            console.warn(`Warning: Could not read notes file ${notesFile}:`, notesError);
+            // Continue without notes
+          }
+        }
+
+        // Extract headings for ToC
+        const h2Regex = /<h2 id="([^"]+)">(.*?)<\/h2>/g;
+        const h3Regex = /<h3 id="([^"]+)">(.*?)<\/h3>/g;
+
+        let match;
+        let allHeadings = [];
+
+        // Get h2s with their IDs and positions
+        while ((match = h2Regex.exec(html)) !== null) {
+          allHeadings.push({
+            level: 2,
+            id: match[1],
+            text: match[2].replace(/<[^>]*>/g, ''),
+            position: match.index
+          });
+        }
+
+        // Get h3s with their IDs and positions
+        while ((match = h3Regex.exec(html)) !== null) {
+          allHeadings.push({
+            level: 3,
+            id: match[1],
+            text: match[2].replace(/<[^>]*>/g, ''),
+            position: match.index
+          });
+        }
+
+        // Sort by position in document
+        allHeadings.sort((a, b) => a.position - b.position);
+
+        return {
+          name: file.replace('.md', ''),
+          title,
+          html,
+          notes,
+          headings: allHeadings
+        };
+      } catch (fileError) {
+        console.error(`Error processing submission file ${file}:`, fileError);
+        throw new Error(`Failed to process ${file}: ${fileError.message}`);
+      }
+    })
+  );
+} catch (error) {
+  console.error(`Error loading submissions from ${submissionsDir}:`, error);
+  throw new Error(`Failed to load submissions: ${error.message}`);
+}
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Write the Docs - History API Editing Comparison</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
+  <!-- Prism.js for syntax highlighting -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+
+  <style is:global>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      background: #f5f5f5;
+    }
+
+    header {
+      background: #2c3e50;
+      color: white;
+      padding: 2rem 1rem;
+      text-align: center;
+    }
+
+    header .back-link-container {
+      text-align: left;
+      margin-bottom: 1rem;
+    }
+
+    header .back-link {
+      color: white;
+      text-decoration: none;
+      opacity: 0.9;
+      font-size: 0.95rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    header .back-link:hover {
+      opacity: 1;
+    }
+
+    header h1 {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+    }
+
+    header p {
+      opacity: 0.9;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem 1rem;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+      background: white;
+      padding: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .tab-button {
+      padding: 0.75rem 1.5rem;
+      border: none;
+      background: #ecf0f1;
+      cursor: pointer;
+      border-radius: 4px;
+      font-size: 1rem;
+      transition: all 0.2s;
+    }
+
+    .tab-button:hover {
+      background: #3498db;
+      color: white;
+    }
+
+    .tab-button.active {
+      background: #2c3e50;
+      color: white;
+    }
+
+    .tab-content {
+      display: none;
+      background: white;
+      padding: 2rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .submission-header {
+      border-bottom: 3px solid #3498db;
+      padding-bottom: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .submission-header h2 {
+      color: #2c3e50;
+      font-size: 1.8rem;
+    }
+
+    .notes-section {
+      background: #fff9e6;
+      border-left: 4px solid #f39c12;
+      padding: 1.5rem;
+      margin: 2rem 0;
+      border-radius: 4px;
+    }
+
+    .notes-section h3 {
+      color: #f39c12;
+      margin-bottom: 1rem;
+    }
+
+    .notes-section h2 {
+      color: #f39c12;
+      margin: 1.5rem 0 0.75rem;
+      font-size: 1.3rem;
+    }
+
+    .notes-section p {
+      margin: 1rem 0;
+    }
+
+    .content-section {
+      line-height: 1.8;
+    }
+
+    .content-section p {
+      margin: 1rem 0;
+    }
+
+    .content-section h2 {
+      color: #2c3e50;
+      margin: 2rem 0 1rem;
+      font-size: 1.6rem;
+      border-bottom: 2px solid #ecf0f1;
+      padding-bottom: 0.5rem;
+    }
+
+    .content-section h3 {
+      color: #34495e;
+      margin: 1.5rem 0 0.75rem;
+      font-size: 1.3rem;
+    }
+
+    .content-section code {
+      background: #f8f8f8;
+      padding: 0.2rem 0.4rem;
+      border-radius: 3px;
+      font-family: 'Monaco', 'Courier New', monospace;
+      font-size: 0.9em;
+    }
+
+    .code-block-wrapper {
+      margin: 1rem 0;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid #d4d4d4;
+    }
+
+    .code-block-header {
+      background: #f6f6f6;
+      padding: 0.5rem 1rem;
+      border-bottom: 1px solid #d4d4d4;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .code-lang-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #5b5b5b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .code-block-wrapper pre {
+      background: #2c3e50;
+      color: #ecf0f1;
+      padding: 1.5rem;
+      margin: 0;
+      border-radius: 0;
+      overflow-x: auto;
+    }
+
+    .content-section pre {
+      background: #2c3e50;
+      color: #ecf0f1;
+      padding: 1.5rem;
+      border-radius: 6px;
+      overflow-x: auto;
+      margin: 1rem 0;
+    }
+
+    .content-section pre code {
+      background: none;
+      padding: 0;
+      color: inherit;
+    }
+
+    /* Code highlighting directives */
+    .content-section pre .code-highlight-add,
+    .code-block-wrapper pre code .code-highlight-add {
+      display: block;
+      background-color: rgba(16, 185, 129, 0.14) !important;
+      border-left: 3px solid #10b981;
+      padding-left: 0.5rem;
+      margin-left: -1.5rem;
+      padding-right: 0.5rem;
+    }
+
+    .content-section pre .code-highlight-remove,
+    .code-block-wrapper pre code .code-highlight-remove {
+      display: block;
+      background-color: rgba(244, 63, 94, 0.14) !important;
+      border-left: 3px solid #f43f5e;
+      padding-left: 0.5rem;
+      margin-left: -1.5rem;
+      padding-right: 0.5rem;
+      opacity: 0.7;
+    }
+
+    .content-section pre .code-highlight-focus,
+    .code-block-wrapper pre code .code-highlight-focus {
+      display: block;
+      background-color: rgba(59, 130, 246, 0.14) !important;
+      border-left: 3px solid #3b82f6;
+      padding-left: 0.5rem;
+      margin-left: -1.5rem;
+      padding-right: 0.5rem;
+    }
+
+    .content-section blockquote {
+      border-left: 4px solid #3498db;
+      padding: 1rem 1rem 1rem 3rem;
+      margin: 1.5rem 0;
+      color: #555;
+      background: #e8f4fd;
+      border-radius: 4px;
+      position: relative;
+    }
+
+    .content-section blockquote::before {
+      content: "ℹ️ NOTE";
+      position: absolute;
+      left: 1rem;
+      top: 1rem;
+      font-weight: bold;
+      color: #2980b9;
+      font-size: 0.9em;
+    }
+
+    /* Add space below the "ℹ️ NOTE" label for the first element */
+    .content-section blockquote > *:first-child {
+      margin-top: 2rem;
+    }
+
+    .content-section table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.5rem 0;
+      border: 2px solid #34495e;
+    }
+
+    .content-section th,
+    .content-section td {
+      border: 1px solid #bdc3c7;
+      padding: 0.75rem;
+      text-align: left;
+    }
+
+    .content-section th {
+      background: #34495e;
+      color: white;
+      font-weight: 600;
+      border: 1px solid #2c3e50;
+    }
+
+    .content-section tr:nth-child(even) {
+      background: #f8f9fa;
+    }
+
+    .content-section tr:hover {
+      background: #ecf0f1;
+    }
+
+    /* NOTE callout styling */
+    .content-section .note-callout {
+      background: #e8f4fd;
+      border-left: 4px solid #3498db;
+      padding: 1rem 1rem 1rem 3rem;
+      margin: 1.5rem 0;
+      border-radius: 4px;
+      position: relative;
+    }
+
+    .content-section .note-callout::before {
+      content: "ℹ️ NOTE";
+      position: absolute;
+      left: 1rem;
+      top: 1rem;
+      font-weight: bold;
+      color: #2980b9;
+      font-size: 0.9em;
+    }
+
+    .content-section .note-callout p:first-child {
+      margin-top: 0;
+    }
+
+    .content-section .note-callout p:last-child {
+      margin-bottom: 0;
+    }
+
+    .content-section a {
+      color: #3498db;
+      text-decoration: none;
+      border-bottom: 1px solid transparent;
+      transition: border-color 0.2s;
+    }
+
+    .content-section a:hover {
+      border-bottom-color: #3498db;
+    }
+
+    .content-section ul,
+    .content-section ol {
+      margin: 1rem 0 1rem 2rem;
+    }
+
+    .content-section li {
+      margin: 0.5rem 0;
+    }
+
+    /* ToC Layout */
+    .content-with-toc {
+      display: flex;
+      gap: 3rem;
+      align-items: flex-start;
+    }
+
+    .main-content {
+      flex: 1;
+      min-width: 0; /* Prevents flex item from overflowing */
+    }
+
+    .toc-sidebar {
+      width: 250px;
+      flex-shrink: 0;
+    }
+
+    .toc-nav {
+      position: sticky;
+      top: 2rem;
+      background: #f8f9fa;
+      border-left: 3px solid #3498db;
+      padding: 1.5rem;
+      border-radius: 6px;
+    }
+
+    .toc-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #2c3e50;
+      margin: 0 0 1rem 0;
+    }
+
+    .toc-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .toc-item {
+      margin: 0;
+    }
+
+    .toc-link {
+      display: block;
+      padding: 0.4rem 0;
+      color: #555;
+      text-decoration: none;
+      font-size: 0.9rem;
+      line-height: 1.4;
+      border-left: 2px solid transparent;
+      padding-left: 0.75rem;
+      margin-left: -0.75rem;
+      transition: all 0.2s;
+    }
+
+    .toc-link:hover {
+      color: #3498db;
+      border-left-color: #3498db;
+      background: rgba(52, 152, 219, 0.05);
+    }
+
+    .toc-level-3 .toc-link {
+      padding-left: 1.5rem;
+      font-size: 0.85rem;
+      color: #666;
+    }
+
+    /* Responsive: hide ToC on smaller screens */
+    @media (max-width: 1200px) {
+      .toc-sidebar {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="back-link-container">
+      <a href="/" class="back-link">
+        ← Back to all exercises
+      </a>
+    </div>
+    <h1>Write the Docs: History API Editing Exercise</h1>
+    <p>Compare different approaches to editing the MDN History API documentation</p>
+  </header>
+
+  <div class="container">
+    <div class="tabs" role="tablist" aria-label="Document versions">
+      {submissions.map((sub, idx) => (
+        <button
+          class={`tab-button ${idx === 0 ? 'active' : ''}`}
+          role="tab"
+          aria-selected={idx === 0}
+          aria-controls={`panel-${sub.name}`}
+          id={`tab-${sub.name}`}
+          data-tab={sub.name}
+        >
+          Version {idx + 1}
+        </button>
+      ))}
+    </div>
+
+    {submissions.map((sub, idx) => (
+      <div
+        class={`tab-content ${idx === 0 ? 'active' : ''}`}
+        role="tabpanel"
+        id={`panel-${sub.name}`}
+        aria-labelledby={`tab-${sub.name}`}
+        data-content={sub.name}
+      >
+        <div class="content-with-toc">
+          <div class="main-content">
+            <div class="submission-header">
+              <h2>{sub.title}</h2>
+            </div>
+
+            <div class="content-section" set:html={sub.html} />
+
+            {sub.notes && (
+              <div class="notes-section">
+                <h3>Editing notes and approach</h3>
+                <div set:html={sub.notes} />
+              </div>
+            )}
+          </div>
+
+          {sub.headings && sub.headings.length > 0 && (
+            <aside class="toc-sidebar">
+              <nav class="toc-nav">
+                <h3 class="toc-title">In this article</h3>
+                <ul class="toc-list">
+                  {sub.headings.map((heading) => (
+                    <li class={`toc-item toc-level-${heading.level}`}>
+                      <a href={`#${heading.id}`} class="toc-link">
+                        {heading.text}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            </aside>
+          )}
+        </div>
+      </div>
+    ))}
+  </div>
+
+  <!-- Prism.js for syntax highlighting (using bundled version with common languages) -->
+  <!-- Using defer to prevent blocking page render. SRI hashes omitted as CDN may update files. -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" data-manual defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js" defer></script>
+
+  <script>
+    const buttons = document.querySelectorAll('.tab-button');
+    const contents = document.querySelectorAll('.tab-content');
+
+    buttons.forEach(button => {
+      button.addEventListener('click', () => {
+        const tabName = button.dataset.tab;
+
+        // Update active states and ARIA attributes
+        buttons.forEach(b => {
+          b.classList.remove('active');
+          b.setAttribute('aria-selected', 'false');
+        });
+        contents.forEach(c => c.classList.remove('active'));
+
+        button.classList.add('active');
+        button.setAttribute('aria-selected', 'true');
+        document.querySelector(`[data-content="${tabName}"]`).classList.add('active');
+
+        // Re-highlight code blocks when switching tabs
+        if (window.Prism) {
+          Prism.highlightAll();
+        }
+      });
+    });
+
+    // Initial syntax highlighting when page loads
+    window.addEventListener('load', () => {
+      if (window.Prism) {
+        Prism.highlightAll();
+      }
+    });
+
+    // Smooth scrolling for ToC links
+    document.querySelectorAll('.toc-link').forEach(link => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        const targetId = link.getAttribute('href').substring(1);
+        const targetElement = document.getElementById(targetId);
+        if (targetElement) {
+          targetElement.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
+          });
+          // Update URL without jumping
+          history.pushState(null, null, `#${targetId}`);
+        }
+      });
+    });
+  </script>
+</body>
+</html>

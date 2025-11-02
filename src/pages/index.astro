@@ -1,0 +1,204 @@
+---
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Write the Docs - Collaborative Editing Exercises</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <style is:global>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      background: #f5f5f5;
+    }
+
+    header {
+      background: #2c3e50;
+      color: white;
+      padding: 3rem 1rem;
+      text-align: center;
+    }
+
+    header h1 {
+      font-size: 2.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    header p {
+      font-size: 1.2rem;
+      opacity: 0.9;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 3rem 1rem;
+    }
+
+    .intro {
+      background: white;
+      padding: 2rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      margin-bottom: 3rem;
+    }
+
+    .intro h2 {
+      color: #2c3e50;
+      font-size: 1.8rem;
+      margin-bottom: 1rem;
+    }
+
+    .intro p {
+      margin: 1rem 0;
+      font-size: 1.1rem;
+      line-height: 1.8;
+    }
+
+    .intro ul {
+      margin: 1rem 0 1rem 2rem;
+      font-size: 1.1rem;
+    }
+
+    .intro li {
+      margin: 0.5rem 0;
+    }
+
+    .exercises {
+      background: white;
+      padding: 2rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .exercises h2 {
+      color: #2c3e50;
+      font-size: 1.8rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .exercise-card {
+      border: 2px solid #3498db;
+      border-radius: 6px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      transition: all 0.2s;
+    }
+
+    .exercise-card:hover {
+      box-shadow: 0 4px 12px rgba(52, 152, 219, 0.2);
+      transform: translateY(-2px);
+    }
+
+    .exercise-card h3 {
+      color: #2c3e50;
+      font-size: 1.4rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .exercise-meta {
+      color: #7f8c8d;
+      font-size: 0.95rem;
+      margin-bottom: 1rem;
+    }
+
+    .exercise-card p {
+      margin: 0.5rem 0;
+      line-height: 1.7;
+    }
+
+    .exercise-card p a {
+      color: #3498db;
+      text-decoration: underline;
+    }
+
+    .exercise-card p a:hover {
+      color: #2980b9;
+    }
+
+    .exercise-card > a {
+      display: inline-block;
+      margin-top: 1rem;
+      padding: 0.75rem 1.5rem;
+      background: #3498db;
+      color: white;
+      text-decoration: none;
+      border-radius: 4px;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+
+    .exercise-card > a:hover {
+      background: #2980b9;
+    }
+
+    footer {
+      text-align: center;
+      padding: 2rem 1rem;
+      color: #7f8c8d;
+      font-size: 0.95rem;
+    }
+
+    footer a {
+      color: #3498db;
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Collaborative Editing Exercises</h1>
+    <p>Write the Docs Community</p>
+  </header>
+
+  <div class="container">
+    <div class="intro">
+      <h2>About this project</h2>
+      <p>One of the questions we hear a lot from technical writers is: "How do I know if I'm any good at this?" or "Is there an objectively good way to write docs?"</p>
+
+      <p>These collaborative editing exercises explore that question by having multiple writers edit the same document independently and then compare approaches. The goal isn't to find the "best" edit, but to see the range of valid editorial choices and learn from each other's approaches.</p>
+
+      <p><strong>How it works:</strong></p>
+      <ul>
+        <li>We select a real documentation page</li>
+        <li>Participants edit it independently (1-2 hours max) with whatever approach feels right</li>
+        <li>Submissions are collected anonymously</li>
+        <li>We discuss the different approaches and what priorities led to different choices</li>
+      </ul>
+
+      <p>Each exercise results in a comparison site where you can see different versions side-by-side, along with notes from each editor about their approach and reasoning.</p>
+
+      <p>These exercises take place in the <a href="https://www.writethedocs.org/slack/" target="_blank" rel="noopener">Write the Docs Slack</a>, specifically in the <a href="https://writethedocs.slack.com/archives/C7YJR1N02" target="_blank" rel="noopener">#learn-tech-writing</a> channel. Join us there to participate in future exercises!</p>
+    </div>
+
+    <div class="exercises">
+      <h2>Past exercises</h2>
+
+      <div class="exercise-card">
+        <h3>October 2025: Working with the History API</h3>
+        <div class="exercise-meta">MDN Web Docs • Submitted October 30, 2025</div>
+        <p>Participants edited <a href="https://developer.mozilla.org/en-US/docs/Web/API/History_API/Working_with_the_History_API" target="_blank" rel="noopener">Mozilla's guide to the History API</a>, focusing on how it enables single-page applications to manage browser history.</p>
+        <a href="/october-2025-history-api">View submissions →</a>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <p>A project from the <a href="https://www.writethedocs.org/" target="_blank" rel="noopener">Write the Docs</a> community</p>
+  </footer>
+</body>
+</html>

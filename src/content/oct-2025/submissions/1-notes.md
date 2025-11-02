@@ -1,0 +1,3 @@
+# Editing notes for Write the Docs exercise
+
+My first impressions from the information architecture: there are many features that inform a reader about where this content fits in Mozilla documentation ecosystem, but there is no "why" - no value proposition or explicit statement about what problem these webhooks solve. Various vertical and horizontal navigational panels surround the content, but only answer "what" not "why." I focused on adding a summary at the top to answer the "why." I dropped the markdown file into VSCode and resolved most of the linter/Vale errors, which were mostly about using passive voice, being too wordy, or replacing "we."

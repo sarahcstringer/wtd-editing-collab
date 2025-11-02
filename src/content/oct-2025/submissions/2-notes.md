@@ -1,0 +1,3 @@
+# Editing notes for Write the Docs exercise
+
+My main focus was restructuring the document to follow a **problem-solution pattern**. The biggest issue felt like the original walked through things like SPAs and showed code without giving context about how they related to the history API/what problem we were going to try to solve. I tried to establish the problem and how we'd solve it first and then go into the fixing.
