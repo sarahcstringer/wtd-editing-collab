@@ -1,13 +1,6 @@
 ---
 import { convertMDNSyntax, extractMetadata } from '../utils/mdnConverter';
-import { readdir, readFile } from 'node:fs/promises';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { marked } from 'marked';
-
-// Get the directory of this file using import.meta.url for reliable path resolution
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 // Configure marked with custom renderer
 marked.use({
@@ -35,110 +28,127 @@ marked.use({
   }
 });
 
-// Get all submissions with proper error handling
-const submissionsDir = join(__dirname, '../content/oct-2025/submissions');
-let submissions = [];
+// Use Astro.glob to load all markdown files at build time
+const allMarkdownFiles = await Astro.glob('../content/oct-2025/submissions/*.md');
 
-try {
-  const files = await readdir(submissionsDir);
-  const mdFiles = files.filter(f => f.endsWith('.md') && !f.endsWith('-notes.md'));
+// Separate main files from notes files based on filename
+const mainFiles = allMarkdownFiles.filter(file => {
+  const filename = file.file?.split('/').pop() || '';
+  return !filename.includes('-notes');
+});
 
-  submissions = await Promise.all(
-    mdFiles.map(async (file) => {
-      try {
-        const content = await readFile(join(submissionsDir, file), 'utf-8');
-        const { title, content: mdContent } = extractMetadata(content);
-        const converted = convertMDNSyntax(mdContent);
-        let html = await marked(converted);
+const notesFiles = allMarkdownFiles.filter(file => {
+  const filename = file.file?.split('/').pop() || '';
+  return filename.includes('-notes');
+});
 
-        // Add IDs to headings for ToC linking
-        const generateId = (text) => {
-          return text
-            .toLowerCase()
-            .replace(/<[^>]*>/g, '') // Remove HTML tags
-            .replace(/[^\w\s-]/g, '') // Remove special chars
-            .replace(/\s+/g, '-') // Replace spaces with hyphens
-            .replace(/-+/g, '-'); // Replace multiple hyphens with single
-        };
+// Sort main files numerically
+mainFiles.sort((a, b) => {
+  const numA = parseInt((a.file?.match(/\/(\d+)\.md/) || [])[1] || '0');
+  const numB = parseInt((b.file?.match(/\/(\d+)\.md/) || [])[1] || '0');
+  return numA - numB;
+});
 
-        html = html.replace(/<h2>(.*?)<\/h2>/g, (match, text) => {
-          const id = generateId(text);
-          return `<h2 id="${id}">${text}</h2>`;
-        });
+const submissions = await Promise.all(
+  mainFiles.map(async (file) => {
+    try {
+      // Get title from frontmatter and raw body content (without frontmatter)
+      const title = file.frontmatter?.title || 'Untitled';
+      const rawContent = file.rawContent();
+      // Extract body by removing frontmatter (everything before the closing ---)
+      const bodyContent = rawContent.replace(/^---\n[\s\S]*?\n---\n/, '');
+      const converted = convertMDNSyntax(bodyContent);
+      let html = await marked(converted);
 
-        html = html.replace(/<h3>(.*?)<\/h3>/g, (match, text) => {
-          const id = generateId(text);
-          return `<h3 id="${id}">${text}</h3>`;
-        });
+      // Add IDs to headings for ToC linking
+      const generateId = (text) => {
+        return text
+          .toLowerCase()
+          .replace(/<[^>]*>/g, '') // Remove HTML tags
+          .replace(/[^\w\s-]/g, '') // Remove special chars
+          .replace(/\s+/g, '-') // Replace spaces with hyphens
+          .replace(/-+/g, '-'); // Replace multiple hyphens with single
+      };
 
-        // Check for notes file
-        const notesFile = file.replace('.md', '-notes.md');
-        let notes = '';
-        if (files.includes(notesFile)) {
-          try {
-            const notesContent = await readFile(join(submissionsDir, notesFile), 'utf-8');
-            let notesHtml = await marked(notesContent);
+      html = html.replace(/<h2>(.*?)<\/h2>/g, (match, text) => {
+        const id = generateId(text);
+        return `<h2 id="${id}">${text}</h2>`;
+      });
 
-            // Remove the h1 title and boilerplate h2s and their following paragraphs
-            notesHtml = notesHtml
-              .replace(/<h1[^>]*>.*?<\/h1>/i, '')  // Remove h1
-              .replace(/<h2[^>]*>Document edited<\/h2>\s*<p>.*?<\/p>/i, '')  // Remove "Document edited" h2 and paragraph
-              .replace(/<h2[^>]*>My editing approach<\/h2>/i, '');  // Remove "My editing approach" h2
+      html = html.replace(/<h3>(.*?)<\/h3>/g, (match, text) => {
+        const id = generateId(text);
+        return `<h3 id="${id}">${text}</h3>`;
+      });
 
-            notes = notesHtml;
-          } catch (notesError) {
-            console.warn(`Warning: Could not read notes file ${notesFile}:`, notesError);
-            // Continue without notes
-          }
+      // Find corresponding notes file
+      const filename = file.file?.split('/').pop()?.replace('.md', '') || '';
+      const notesFile = notesFiles.find(nf => {
+        const notesFilename = nf.file?.split('/').pop() || '';
+        return notesFilename === `${filename}-notes.md`;
+      });
+
+      let notes = '';
+      if (notesFile) {
+        try {
+          const notesContent = notesFile.rawContent();
+          let notesHtml = await marked(notesContent);
+
+          // Remove the h1 title and boilerplate h2s and their following paragraphs
+          notesHtml = notesHtml
+            .replace(/<h1[^>]*>.*?<\/h1>/i, '')  // Remove h1
+            .replace(/<h2[^>]*>Document edited<\/h2>\s*<p>.*?<\/p>/i, '')  // Remove "Document edited" h2 and paragraph
+            .replace(/<h2[^>]*>My editing approach<\/h2>/i, '');  // Remove "My editing approach" h2
+
+          notes = notesHtml;
+        } catch (notesError) {
+          console.warn(`Warning: Could not read notes file for ${filename}:`, notesError);
+          // Continue without notes
         }
-
-        // Extract headings for ToC
-        const h2Regex = /<h2 id="([^"]+)">(.*?)<\/h2>/g;
-        const h3Regex = /<h3 id="([^"]+)">(.*?)<\/h3>/g;
-
-        let match;
-        let allHeadings = [];
-
-        // Get h2s with their IDs and positions
-        while ((match = h2Regex.exec(html)) !== null) {
-          allHeadings.push({
-            level: 2,
-            id: match[1],
-            text: match[2].replace(/<[^>]*>/g, ''),
-            position: match.index
-          });
-        }
-
-        // Get h3s with their IDs and positions
-        while ((match = h3Regex.exec(html)) !== null) {
-          allHeadings.push({
-            level: 3,
-            id: match[1],
-            text: match[2].replace(/<[^>]*>/g, ''),
-            position: match.index
-          });
-        }
-
-        // Sort by position in document
-        allHeadings.sort((a, b) => a.position - b.position);
-
-        return {
-          name: file.replace('.md', ''),
-          title,
-          html,
-          notes,
-          headings: allHeadings
-        };
-      } catch (fileError) {
-        console.error(`Error processing submission file ${file}:`, fileError);
-        throw new Error(`Failed to process ${file}: ${fileError.message}`);
       }
-    })
-  );
-} catch (error) {
-  console.error(`Error loading submissions from ${submissionsDir}:`, error);
-  throw new Error(`Failed to load submissions: ${error.message}`);
-}
+
+      // Extract headings for ToC
+      const h2Regex = /<h2 id="([^"]+)">(.*?)<\/h2>/g;
+      const h3Regex = /<h3 id="([^"]+)">(.*?)<\/h3>/g;
+
+      let match;
+      let allHeadings = [];
+
+      // Get h2s with their IDs and positions
+      while ((match = h2Regex.exec(html)) !== null) {
+        allHeadings.push({
+          level: 2,
+          id: match[1],
+          text: match[2].replace(/<[^>]*>/g, ''),
+          position: match.index
+        });
+      }
+
+      // Get h3s with their IDs and positions
+      while ((match = h3Regex.exec(html)) !== null) {
+        allHeadings.push({
+          level: 3,
+          id: match[1],
+          text: match[2].replace(/<[^>]*>/g, ''),
+          position: match.index
+        });
+      }
+
+      // Sort by position in document
+      allHeadings.sort((a, b) => a.position - b.position);
+
+      return {
+        name: filename,
+        title,
+        html,
+        notes,
+        headings: allHeadings
+      };
+    } catch (fileError) {
+      console.error(`Error processing submission file:`, fileError);
+      throw new Error(`Failed to process file: ${fileError.message}`);
+    }
+  })
+);
 ---
 
 <!DOCTYPE html>
