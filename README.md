@@ -1,8 +1,8 @@
 # Write the Docs: History API Editing Comparison Site
 
-This site displays multiple versions of the MDN History API documentation, edited by different contributors as part of a Write the Docs community editing exercise.
+This site displays multiple versions of the MDN History API documentation, edited by different contributors as part of a Write the Docs October 2025 editing exercise.
 
-## Quick Start
+## Run this site locally
 
 ```bash
 # Install dependencies
@@ -10,33 +10,41 @@ npm install
 
 # Run locally
 npm run dev
-# Open http://localhost:4321
-
-# Build for production
-npm run build
+# Open http://localhost:4321/october-2025-history-api
 ```
 
-## Adding New Submissions
+## Add new submissions
 
-1. Add your edited Markdown file to `src/content/submissions/`
-   - Name it something like `yourname.md`
-   - Must include frontmatter with `title:` field
+1. Add your edited Markdown file to `src/content/oct-2025/submissions/`
+   - Name it with a number like `5.md`, `6.md`, etc.
+   - Must include frontmatter with these fields:
+     ```yaml
+     ---
+     title: Your Article Title
+     slug: Web/API/History_API/Working_with_the_History_API
+     page-type: guide
+     ---
+     ```
 
 2. (Optional) Add your editing notes
-   - Create `yourname-notes.md` in the same directory
-   - This will show as a highlighted section at the top
+   - Create `5-notes.md` (matching your submission number)
+   - This will show as a "Notes" tab at the bottom of your version
+   - Notes files don't need frontmatter
 
-### Example File Structure
+### Example file structure
 
 ```
-src/content/submissions/
-├── sarah.md              # Edited version
-├── sarah-notes.md        # Editing approach notes
-├── john.md              # Another person's version
-└── john-notes.md        # Their notes
+src/content/oct-2025/submissions/
+├── 1.md                 # First edited version
+├── 1-notes.md           # Editing approach notes
+├── 2.md                 # Second version
+├── 2-notes.md           # Their notes
+├── 3.md
+├── 3-notes.md
+└── 4.md
 ```
 
-## MDN Syntax Conversion
+## MDN syntax conversion
 
 The site automatically converts MDN-specific syntax to standard HTML:
 
@@ -45,43 +53,12 @@ The site automatically converts MDN-specific syntax to standard HTML:
 - `{{httpheader("Referer")}}` → `<code>Referer</code>`
 - `{{DefaultAPISidebar()}}` → Removed (not needed)
 
-## Deployment
+## How it works
 
-### Netlify (Recommended)
-
-1. Push this repo to GitHub
-2. Connect to Netlify
-3. Settings are already configured in `netlify.toml`
-4. Deploy!
-
-Participants can submit their versions via:
-- Pull requests to the repo
-- Email/Slack the `.md` files to you
-
-### Other Platforms
-
-- **Vercel**: Works out of the box, no config needed
-- **GitHub Pages**: Add `site: 'https://yourusername.github.io/repo-name'` to `astro.config.mjs`
-
-## How It Works
-
-1. Reads all `.md` files from `src/content/submissions/`
-2. Converts MDN syntax using regex in `src/utils/mdnConverter.ts`
-3. Renders with `marked` to HTML
-4. Displays in tabs with styling
-
-## Customization
-
-### Styling
-
-Edit the `<style>` block in `src/pages/index.astro`
-
-### Add More MDN Syntax Support
-
-Edit `src/utils/mdnConverter.ts` and add more regex patterns
-
-## Credits
-
-Built with:
-- [Astro](https://astro.build) - Static site generator
-- [marked](https://marked.js.org) - Markdown parser
+1. Content collection is defined in `src/content.config.ts`
+2. Page uses `Astro.glob()` to load all `.md` files from `src/content/oct-2025/submissions/`
+3. Files are separated into main submissions and notes based on filename
+4. MDN syntax is converted using regex in `src/utils/mdnConverter.ts`
+5. Markdown is rendered to HTML with `marked`
+6. Submissions are displayed in tabs with syntax highlighting via Prism.js
+7. Notes appear in a separate tab at the bottom of each version
